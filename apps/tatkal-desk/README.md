@@ -16,7 +16,7 @@ login, CAPTCHA, OTP, payment → final PNR / failure report in Desk.
 2. **Double-click `Start-Tatkal-Desk.bat` from anywhere** (this folder, Downloads, or next to the zip). It copies the app to `%USERPROFILE%\Desktop\Tatkal-Desk` (skips `node_modules` and `.next`) and starts only from there. A zip named `Tatkal-Desk-Desktop.zip` next to the bat is extracted to Desktop instead. Or right-click `Run-Now.ps1` -> Run with PowerShell.
 3. Optional cleanup of old leftovers: `docs\node_modules`, `docs\package-lock.json`, and `docs\Tatkal-Desk-Desktop\` (nested under Context). Do not need these for the new launcher.
 4. Browser opens to http://localhost:3000. First run may `npm install`.
-5. Fill the night-before form + checklist → **Arm Astra timeline** → keep the tab open → complete **HAND TO ME** when prompted.
+5. Fill the night-before form + checklist → **Arm Astra timeline** → **Open IRCTC** (after `npx playwright install chromium` once) → keep the tab open → type login, CAPTCHA, OTP, and payment in the IRCTC window.
 
 **Note:** `npm run dev` uses plain `next dev` (Turbopack disabled) to avoid Windows path-length FATAL errors on long folders.
 
@@ -36,7 +36,8 @@ Optional: leave `IRCTC_PASSWORD` empty in `.env.local`. Type your password only 
 1. **Node.js LTS** ઇન્સ્ટોલ કરો: [https://nodejs.org](https://nodejs.org) (v20+).
 2. આ ફોલ્ડર Desktop પર `Tatkal-Desk` નામથી રાખો (zip હોય તો extract કરીને).
 3. **`Start-Tatkal-Desk.bat` પર ડબલ-ક્લિક કરો** (પહેલી વાર packages install થઈ શકે; બ્રાઉઝર http://localhost:3000 ખુલશે).
-4. રાત પહેલાંનું ફોર્મ + ચેકલિસ્ટ ભરો → **Arm Astra timeline** → ટેબ ખુલ્લી રાખો → **HAND TO ME** આવે ત્યારે login / CAPTCHA / OTP / payment પૂરું કરો.
+4. રાત પહેલાંનું ફોર્મ + ચેકલિસ્ટ ભરો → **Arm Astra timeline**.
+5. એક વાર `npx playwright install chromium`, પછી **Open IRCTC**. From / To / date / class / TQ ભરાશે. Password, CAPTCHA, OTP, payment તમે IRCTC વિન્ડોમાં જ ટાઈપ કરો.
 
 નોંધ: `.env.local` માં પાસવર્ડ ખાલી રાખો. પાસવર્ડ ફક્ત IRCTC બ્રાઉઝરમાં જ ટાઈપ કરો — Desk અથવા chat માં નહીં.
 
@@ -53,20 +54,24 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Optional Playwright scaffolding
+### Open IRCTC (headed Chromium)
+
+Once, in this folder:
 
 ```bash
-npm i -D playwright
 npx playwright install chromium
-# Windows PowerShell:
-$env:BOOKING_MODE="playwright"; npm run dev
-# bash:
-BOOKING_MODE=playwright npm run dev
 ```
 
-Live IRCTC selectors are **not** wired in this build (fragile + ToS). Playwright
-mode logs the runbook and continues the same simulate timeline so you can
-practice. Wire selectors on your machine before a real Tatkal morning.
+Then in the dashboard click **Open IRCTC**. A visible Chromium window opens
+https://www.irctc.co.in and fills **From, To, date, class, and quota (TQ)** from
+the saved booking. It does not click Login and does not type your password.
+
+At Tatkal open, if you already logged in yourself, the window may click Search
+and fill passenger name / age / gender, then **pause** at CAPTCHA, OTP, or
+payment. Type those in the IRCTC window.
+
+If Chromium is missing, or IRCTC blocks the script, Desk stays on the simulate
+timeline and the card explains the one-time install command.
 
 ## What works
 
@@ -80,8 +85,9 @@ practice. Wire selectors on your machine before a real Tatkal morning.
 | Fare-cap stop + History/wallet guard messaging | ✅ |
 | Final report (placeholder PNR in simulate) | ✅ |
 | Session API `/api/bookings/:id/session` | ✅ |
-| Playwright scaffolding (no ChatGPT) | ✅ stub |
-| Live IRCTC book in cloud VM | ❌ — run attended locally |
+| Open IRCTC headed window (public journey fields only) | ✅ local Chromium |
+| Playwright missing → simulate timeline | ✅ |
+| Live unattended book / password / CAPTCHA / OTP / payment | ❌ never |
 
 ## Human steps (you)
 
@@ -103,6 +109,7 @@ practice. Wire selectors on your machine before a real Tatkal morning.
 - `POST /api/bookings/:id/human-step` — `{ "step", "value" }` (login value = `done`)
 - `GET/POST /api/bookings/:id/session` — HAND TO ME session state
 - `POST /api/schedule/tick` — advance from T−15
+- `POST /api/bookings/:id/open-irctc` — headed Chromium, public journey fields only
 
 ## Docs
 

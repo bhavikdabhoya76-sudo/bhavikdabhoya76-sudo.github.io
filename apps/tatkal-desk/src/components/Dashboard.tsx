@@ -76,9 +76,10 @@ export function Dashboard() {
             <p className="brand-mark">Tatkal Desk</p>
             <h1>Private Astra-style Tatkal — you stay in control.</h1>
             <p className="lede">
-              Night-before form and checklist. T−15 / T−10 / T+0 timeline.
-              Attended browser pauses for login, CAPTCHA, OTP, and payment — no
-              ChatGPT, no password in chat.
+              Night-before form and checklist. Open IRCTC fills saved From, To,
+              date, class, and Tatkal quota in a window you can see. You still
+              type login, CAPTCHA, OTP, and payment — no ChatGPT, no password
+              in chat.
             </p>
             <div className="cta-row">
               <a className="primary-btn" href="#compose">
@@ -143,8 +144,9 @@ export function Dashboard() {
               check Booked Ticket History and eWallet before any retry.
             </li>
             <li>
-              Simulate mode practices the exact Astra timeline with a placeholder
-              PNR. Live IRCTC needs local Playwright + you at the keyboard.
+              Open IRCTC uses headed Chromium. If Playwright is missing, Desk
+              stays on the simulate timeline. One-time setup:{" "}
+              <code>npx playwright install chromium</code>
             </li>
             <li>
               IRCTC may flag automation — use only for your own travel, at your

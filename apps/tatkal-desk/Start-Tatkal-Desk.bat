@@ -197,6 +197,9 @@ if not exist ".env.local" (
 echo Opening browser in a few seconds...
 echo Server: http://localhost:3000
 echo.
+echo Open IRCTC button — install Chromium once in this folder if needed:
+echo   npx playwright install chromium
+echo.
 echo Keep this window open while Tatkal Desk is running.
 echo Press Ctrl+C to stop the server.
 echo.

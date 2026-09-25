@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { syncIrctcWindows } from "@/lib/irctc-window";
 import { newId } from "@/lib/id";
 import { readBookings, upsertBooking } from "@/lib/storage";
 import { computeTatkalOpenAt } from "@/lib/tatkal-time";
@@ -21,7 +22,7 @@ const emptyChecklist = (): PrepChecklist => ({
 });
 
 export async function GET() {
-  const bookings = await readBookings();
+  const bookings = await syncIrctcWindows(await readBookings());
   return NextResponse.json({
     bookings,
     credentials: getCredentialStatus(),

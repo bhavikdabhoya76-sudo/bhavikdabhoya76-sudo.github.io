@@ -128,6 +128,23 @@ export function BookingList({ bookings, onChanged }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  async function openIrctc(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/bookings/${id}/open-irctc`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not open IRCTC");
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function arm(id: string) {
     setBusyId(id);
     setError(null);
@@ -209,8 +226,41 @@ export function BookingList({ bookings, onChanged }: Props) {
     );
   }
 
+  const launchTarget =
+    bookings.find((b) =>
+      [
+        "armed",
+        "waiting_for_tatkal",
+        "running",
+        "awaiting_login",
+        "awaiting_captcha",
+        "awaiting_otp",
+        "awaiting_payment",
+      ].includes(b.status),
+    ) || bookings.find((b) => b.status !== "cancelled");
+
   return (
     <div className="booking-list">
+      {launchTarget && (
+        <div className="irctc-launch">
+          <button
+            type="button"
+            className="primary-btn"
+            disabled={busyId === launchTarget.id}
+            onClick={() => openIrctc(launchTarget.id)}
+          >
+            Open IRCTC
+          </button>
+          <p>
+            Opens Chromium on irctc.co.in and fills From, To, date, class, and
+            Tatkal quota from{" "}
+            <strong>
+              {launchTarget.fromStation} → {launchTarget.toStation}
+            </strong>
+            . You type login, CAPTCHA, OTP, and payment in that window.
+          </p>
+        </div>
+      )}
       {error && <p className="form-msg error list-error">{error}</p>}
       {bookings.map((b) => (
         <article key={b.id} className={`booking-item status-${b.status}`}>
@@ -254,6 +304,12 @@ export function BookingList({ bookings, onChanged }: Props) {
           </div>
 
           <TimelineRail phase={b.timelinePhase || "idle"} opensAt={b.tatkalOpensAt} />
+
+          {b.irctcWindow && (
+            <div className={`irctc-banner ${b.irctcWindow.mode}`}>
+              <strong>IRCTC window.</strong> {b.irctcWindow.message}
+            </div>
+          )}
 
           {b.finalReport && (
             <div className={`final-report ${b.finalReport.outcome}`}>
@@ -357,6 +413,16 @@ export function BookingList({ bookings, onChanged }: Props) {
           </details>
 
           <footer className="item-actions">
+            {b.status !== "cancelled" && (
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={busyId === b.id}
+                onClick={() => openIrctc(b.id)}
+              >
+                Open IRCTC
+              </button>
+            )}
             {(b.status === "draft" || b.status === "failed") && (
               <button
                 type="button"

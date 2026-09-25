@@ -126,7 +126,7 @@ export async function tryLaunchBrowser(
     appendLog(
       booking,
       "info",
-      "PW: Chromium available. Live IRCTC selectors are not wired in this build — using Astra timeline simulate with HAND TO ME pauses. See README for local wiring steps.",
+      "PW: Chromium package is installed. Use the Open IRCTC button for the headed window. This tick does not type passwords or pass CAPTCHA.",
     );
     upsertSession({
       bookingId: booking.id,
@@ -177,7 +177,7 @@ export async function runAttendedPlaywright(
   appendLog(
     booking,
     "warn",
-    "PW: Live selector automation not enabled in cloud. Continuing with simulate path that mirrors the exact Astra timeline for practice. Wire selectors locally before a real Tatkal morning.",
+    "PW: Click Open IRCTC for a headed window that fills From, To, Date, Class, and TQ. Simulate timeline continues for practice. Login, CAPTCHA, OTP, and payment stay manual.",
   );
   return "continue_simulate";
 }

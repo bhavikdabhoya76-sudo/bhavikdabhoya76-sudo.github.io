@@ -122,6 +122,8 @@ export interface BookingRequest {
   enginePhase: number;
   ticketPnr?: string;
   finalReport?: FinalReport;
+  /** Headed IRCTC window status. Absent until Open IRCTC is used. */
+  irctcWindow?: IrctcWindowState;
 }
 
 export interface RunLogEntry {
@@ -151,4 +153,13 @@ export interface CredentialStatus {
   source: "env" | "missing";
   /** Attended login is preferred — password not required to arm. */
   attendedLogin: true;
+}
+
+/** Live headed IRCTC window. Secrets are never part of this state. */
+export interface IrctcWindowState {
+  mode: "playwright" | "simulate";
+  phase: string;
+  gate: "login" | "captcha" | "otp" | "payment" | null;
+  message: string;
+  updatedAt: string;
 }
