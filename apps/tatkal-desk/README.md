@@ -13,9 +13,9 @@ login, CAPTCHA, OTP, payment → final PNR / failure report in Desk.
 ### English
 
 1. **Install Node.js LTS** from [https://nodejs.org](https://nodejs.org) (v20+). Restart after install if needed.
-2. Put this folder on your Desktop as `Tatkal-Desk` only (`%USERPROFILE%\Desktop\Tatkal-Desk`). Long AgentStores / Context paths break Next.js.
-3. Before first run after a bad extract: delete if present `docs\node_modules`, `docs\package-lock.json`, and `docs\Tatkal-Desk-Desktop\` (nested under Context).
-4. **Double-click `Start-Tatkal-Desk.bat`** (always runs from Desktop\Tatkal-Desk; zip next to bat auto-extracts there). Browser opens to http://localhost:3000.
+2. **Double-click `Start-Tatkal-Desk.bat` from anywhere** (this folder, Downloads, or next to the zip). It copies the app to `%USERPROFILE%\Desktop\Tatkal-Desk` (skips `node_modules` and `.next`) and starts only from there. A zip named `Tatkal-Desk-Desktop.zip` next to the bat is extracted to Desktop instead. Or right-click `Run-Now.ps1` -> Run with PowerShell.
+3. Optional cleanup of old leftovers: `docs\node_modules`, `docs\package-lock.json`, and `docs\Tatkal-Desk-Desktop\` (nested under Context). Do not need these for the new launcher.
+4. Browser opens to http://localhost:3000. First run may `npm install`.
 5. Fill the night-before form + checklist → **Arm Astra timeline** → keep the tab open → complete **HAND TO ME** when prompted.
 
 **Note:** `npm run dev` uses plain `next dev` (Turbopack disabled) to avoid Windows path-length FATAL errors on long folders.

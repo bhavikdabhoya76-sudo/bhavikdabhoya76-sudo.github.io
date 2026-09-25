@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 title Tatkal Desk
 
 echo ========================================
@@ -7,26 +7,71 @@ echo   Tatkal Desk - starting...
 echo ========================================
 echo.
 
-rem ALWAYS run from a short path. Long AgentStores / Context / nested docs
-rem paths break Next.js (wrong root) and Turbopack (MAX_PATH).
+rem Always start Next from the short Desktop path. If this .bat sits in a
+rem long AgentStores / docs / nested folder, copy that folder to Desktop
+rem first. Never run next from the long path.
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "APPDIR=%DESKTOP%\Tatkal-Desk"
 set "ZIPNEXT=%~dp0Tatkal-Desk-Desktop.zip"
 set "BATSRC=%~f0"
+set "BATDIR=%~dp0"
+set "BATDIR=%BATDIR:~0,-1%"
+set "XEX=%TEMP%\tatkal-desk-xcopy-exclude.txt"
 
 if not exist "%DESKTOP%" mkdir "%DESKTOP%" >nul 2>&1
 
-rem Guard: never treat AgentStores / Context / nested extract as APPDIR.
-echo %APPDIR%| findstr /I /C:"AgentStores" /C:"\docs\Tatkal-Desk-Desktop" /C:"\.cursor\projects" >nul
+rem APPDIR must stay the short Desktop folder, never a long Context path.
+echo %APPDIR%| findstr /I /L /C:"AgentStores" /C:"\docs\Tatkal-Desk-Desktop" /C:"\.cursor\projects" >nul
 if not errorlevel 1 (
-  echo ERROR: Refusing long AgentStores / Context path as APPDIR.
-  echo Expected short path: %%USERPROFILE%%\Desktop\Tatkal-Desk
+  echo ERROR: Desktop path looks like a long AgentStores / Context path.
+  echo Expected: %%USERPROFILE%%\Desktop\Tatkal-Desk
   echo.
   pause
   exit /b 1
 )
 
-rem 1) Zip next to this .bat -> expand/refresh Desktop\Tatkal-Desk
+rem 1) Already in Desktop\Tatkal-Desk with package.json -> run there.
+if /I "%BATDIR%"=="%APPDIR%" (
+  if exist "%APPDIR%\package.json" (
+    echo Already in Desktop\Tatkal-Desk
+    echo   %APPDIR%
+    echo.
+    goto :prepare_appdir
+  )
+)
+
+rem 2) package.json next to this .bat, but not Desktop -> copy, then run from Desktop.
+if exist "%~dp0package.json" (
+  echo Found package.json next to this .bat.
+  echo Copying to Desktop\Tatkal-Desk ^(excluding node_modules and .next^)...
+  echo From:
+  echo   %BATDIR%
+  echo To:
+  echo   %APPDIR%
+  echo.
+  if not exist "%APPDIR%" mkdir "%APPDIR%"
+  robocopy "%BATDIR%" "%APPDIR%" /E /XD node_modules .next /NFL /NDL /NJH /NJS /nc /ns /np
+  set "RC=!ERRORLEVEL!"
+  if !RC! GEQ 8 (
+    echo robocopy failed ^(code !RC!^). Trying xcopy...
+    > "%XEX%" echo node_modules\
+    >> "%XEX%" echo .next\
+    xcopy "%BATDIR%\*" "%APPDIR%" /E /I /Y /EXCLUDE:"!XEX!"
+  )
+  if not exist "%APPDIR%\package.json" (
+    echo.
+    echo Copy failed. package.json was not created at:
+    echo   %APPDIR%
+    echo.
+    pause
+    exit /b 1
+  )
+  echo Copied to: %APPDIR%
+  echo.
+  goto :prepare_appdir
+)
+
+rem 3) Zip next to this .bat -> expand/refresh Desktop\Tatkal-Desk
 if exist "%ZIPNEXT%" (
   echo Found Tatkal-Desk-Desktop.zip next to this .bat
   echo Extracting to Desktop ^(refresh Desktop\Tatkal-Desk^)...
@@ -50,38 +95,11 @@ if exist "%ZIPNEXT%" (
   goto :prepare_appdir
 )
 
-rem 2) Already on Desktop with package.json -> use that
+rem 4) Desktop app already present (this .bat was launched from somewhere else)
 if exist "%APPDIR%\package.json" (
   echo Using existing: %APPDIR%
   echo.
   goto :prepare_appdir
-)
-
-rem 3) Bat sits inside a folder that has package.json, but it is NOT Desktop.
-rem    Refuse long paths; ask user to put app on Desktop.
-if exist "%~dp0package.json" (
-  echo.
-  echo Found package.json next to this .bat, but that folder is NOT
-  echo   %APPDIR%
-  echo.
-  echo Refusing to run from a long / nested path ^(AgentStores, docs,
-  echo Tatkal-Desk-Desktop under Context, etc.^).
-  echo.
-  echo FIX:
-  echo   1. Delete leftover junk if present:
-  echo        docs\node_modules
-  echo        docs\package-lock.json
-  echo        docs\Tatkal-Desk-Desktop\
-  echo   2. Put Tatkal-Desk-Desktop.zip on Desktop ^(or next to this .bat^)
-  echo      and run this .bat again - it extracts to Desktop\Tatkal-Desk
-  echo   3. Or copy the whole Tatkal-Desk folder to:
-  echo        %APPDIR%
-  echo      then double-click Start-Tatkal-Desk.bat there.
-  echo.
-  echo Gujarati: Lambe path thi nahi chalavu. Desktop\Tatkal-Desk use karo.
-  echo.
-  pause
-  exit /b 1
 )
 
 echo.
@@ -89,11 +107,11 @@ echo Tatkal Desk app folder not found at:
 echo   %APPDIR%
 echo.
 echo Do one of the following:
-echo   1. Put Tatkal-Desk-Desktop.zip next to this .bat and run again
-echo   2. Or extract the zip to your Desktop ^(get Desktop\Tatkal-Desk^)
+echo   1. Double-click this .bat inside the Tatkal-Desk folder ^(it copies to Desktop^)
+echo   2. Put Tatkal-Desk-Desktop.zip next to this .bat and run again
+echo   3. Or extract the zip to your Desktop ^(get Desktop\Tatkal-Desk^)
 echo.
-echo Gujarati: Zip ne Desktop par extract karo, pachhi
-echo Desktop\Tatkal-Desk\Start-Tatkal-Desk.bat double-click karo.
+echo Gujarati: Folder Desktop\Tatkal-Desk ma copy thase. Bat farithi double-click karo.
 echo.
 pause
 exit /b 1
@@ -102,13 +120,17 @@ exit /b 1
 if not exist "%APPDIR%\package.json" (
   echo ERROR: package.json missing in:
   echo   %APPDIR%
-  echo Refusing to run npm here.
+  echo Cannot run npm here.
   pause
   exit /b 1
 )
 
-rem Keep launcher in the Desktop app folder in sync with this .bat
+rem Strip turbopack before npm so next dev stays on the short path.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='%APPDIR%\package.json'; if (Test-Path -LiteralPath $p) { $t=[IO.File]::ReadAllText($p); $n=$t.Replace('next dev --turbopack','next dev'); if ($n -ne $t) { $u=New-Object System.Text.UTF8Encoding $false; [IO.File]::WriteAllText($p,$n,$u); Write-Output 'Removed turbopack from package.json' } }"
+
+rem Keep launchers in the Desktop app folder in sync with this .bat
 copy /Y "%BATSRC%" "%APPDIR%\Start-Tatkal-Desk.bat" >nul 2>&1
+if exist "%~dp0Run-Now.ps1" copy /Y "%~dp0Run-Now.ps1" "%APPDIR%\Run-Now.ps1" >nul 2>&1
 
 cd /d "%APPDIR%"
 if errorlevel 1 (
@@ -117,11 +139,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
-rem Final safety: cwd must be the short Desktop path
-echo %CD%| findstr /I /C:"AgentStores" /C:"\docs\Tatkal-Desk-Desktop" >nul
+rem Final safety: never run next from AgentStores / docs / nested extract.
+echo %CD%| findstr /I /L /C:"AgentStores" /C:"\docs\Tatkal-Desk-Desktop" /C:"\.cursor\projects" >nul
 if not errorlevel 1 (
   echo ERROR: Still in a long path. Aborting.
   echo Current: %CD%
+  echo Next.js is not started.
   pause
   exit /b 1
 )
