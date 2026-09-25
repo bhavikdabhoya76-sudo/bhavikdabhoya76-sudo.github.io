@@ -13,10 +13,12 @@ login, CAPTCHA, OTP, payment → final PNR / failure report in Desk.
 ### English
 
 1. **Install Node.js LTS** from [https://nodejs.org](https://nodejs.org) (v20+). Restart after install if needed.
-2. Put this folder on your Desktop as `Tatkal-Desk` (if you downloaded the zip, extract there).
-3. **Double-click `Start-Tatkal-Desk.bat`** (first run may install packages; browser opens to http://localhost:3000).
-   Do **not** run the bat from Context `docs` alone — `package.json` lives in this folder (or inside the zip). Newer bat next to `Tatkal-Desk-Desktop.zip` can auto-extract to Desktop.
-4. Fill the night-before form + checklist → **Arm Astra timeline** → keep the tab open → complete **HAND TO ME** when prompted.
+2. Put this folder on your Desktop as `Tatkal-Desk` only (`%USERPROFILE%\Desktop\Tatkal-Desk`). Long AgentStores / Context paths break Next.js.
+3. Before first run after a bad extract: delete if present `docs\node_modules`, `docs\package-lock.json`, and `docs\Tatkal-Desk-Desktop\` (nested under Context).
+4. **Double-click `Start-Tatkal-Desk.bat`** (always runs from Desktop\Tatkal-Desk; zip next to bat auto-extracts there). Browser opens to http://localhost:3000.
+5. Fill the night-before form + checklist → **Arm Astra timeline** → keep the tab open → complete **HAND TO ME** when prompted.
+
+**Note:** `npm run dev` uses plain `next dev` (Turbopack disabled) to avoid Windows path-length FATAL errors on long folders.
 
 Manual alternative (PowerShell / Command Prompt):
 
