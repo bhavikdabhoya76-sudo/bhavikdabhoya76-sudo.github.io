@@ -326,7 +326,7 @@ export function filledJourneyMessage(job: IrctcJob, partial: boolean): string {
 }
 
 export function simulateInstallMessage(): string {
-  return "Playwright Chromium is not ready. In the Tatkal Desk folder run once: npx playwright install chromium — then click Open IRCTC again. Simulate mode still runs. Login, CAPTCHA, OTP, and payment stay manual.";
+  return "Playwright Chromium is missing. In Desktop\\Tatkal-Desk run: npx playwright install chromium — then click Open IRCTC again.";
 }
 
 /** Akamai/IRCTC block page. Selectors cannot run until the form is actually visible. */

@@ -30,6 +30,28 @@ if not errorlevel 1 (
   exit /b 1
 )
 
+rem Prefer the zip next to this bat, else the Context docs zip, and refresh Desktop.
+set "STOREZIP=%LOCALAPPDATA%\Cursor\AgentStores\cursor_agent_stores\bc-71198e40-4690-498a-a7c3-97998cf65793\files\docs\Tatkal-Desk-Desktop.zip"
+set "USEZIP="
+if exist "%ZIPNEXT%" set "USEZIP=%ZIPNEXT%"
+if not defined USEZIP if exist "%STOREZIP%" set "USEZIP=%STOREZIP%"
+if defined USEZIP (
+  echo Refreshing Desktop\Tatkal-Desk from zip...
+  echo   !USEZIP!
+  echo.
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '!USEZIP!' -DestinationPath '%DESKTOP%' -Force"
+  if errorlevel 1 (
+    tar -xf "!USEZIP!" -C "%DESKTOP%" 2>nul
+  )
+  if exist "%APPDIR%\package.json" (
+    echo Refreshed: %APPDIR%
+    echo.
+    goto :prepare_appdir
+  )
+  echo Zip extract did not create package.json. Continuing with other options...
+  echo.
+)
+
 rem 1) Already in Desktop\Tatkal-Desk with package.json -> run there.
 if /I "%BATDIR%"=="%APPDIR%" (
   if exist "%APPDIR%\package.json" (
@@ -185,6 +207,18 @@ if not exist "node_modules\" (
   echo.
   echo Dependencies installed.
   echo.
+)
+
+if not exist "node_modules\playwright\package.json" (
+  echo Playwright package missing. Running npm install...
+  echo.
+  call npm install
+  if errorlevel 1 (
+    echo.
+    echo npm install failed. Check the errors above.
+    pause
+    exit /b 1
+  )
 )
 
 if not exist ".env.local" (

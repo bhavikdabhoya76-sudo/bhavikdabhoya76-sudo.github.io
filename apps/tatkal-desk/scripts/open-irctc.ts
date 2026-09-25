@@ -22,6 +22,7 @@ import {
   fieldIsProtected,
   filledJourneyMessage,
   nextBrowserAction,
+  simulateInstallMessage,
   optionMatches,
   publicJobHasNoSecrets,
   type BrowserAction,
@@ -375,8 +376,7 @@ async function main(): Promise<void> {
       mode: "simulate",
       phase: "simulate",
       gate: null,
-      message:
-        "Playwright package is missing. Run npm install, then npx playwright install chromium, and click Open IRCTC again. Simulate mode still runs.",
+      message: simulateInstallMessage(),
     });
     return;
   }
@@ -393,7 +393,7 @@ async function main(): Promise<void> {
       mode: "simulate",
       phase: "simulate",
       gate: null,
-      message: `Could not open headed Chromium (${detail}). Run once: npx playwright install chromium — then click Open IRCTC again. Simulate mode still runs.`,
+      message: `${simulateInstallMessage()} (${detail})`,
     });
     return;
   }

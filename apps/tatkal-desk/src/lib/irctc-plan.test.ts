@@ -14,6 +14,7 @@ import {
   publicJobHasNoSecrets,
   quotaLabel,
   selectorsArePublic,
+  simulateInstallMessage,
 } from "./irctc-plan";
 import type { BookingRequest } from "./types";
 
@@ -251,6 +252,13 @@ describe("attended gates", () => {
     assert.equal(nextBrowserAction({ ...base, gate: "captcha" }), "pause_captcha");
     assert.equal(nextBrowserAction({ ...base, gate: "otp" }), "pause_otp");
     assert.equal(nextBrowserAction({ ...base, gate: "payment" }), "pause_payment");
+  });
+
+  it("tells the user where to install Chromium when Open IRCTC cannot launch", () => {
+    const message = simulateInstallMessage();
+    assert.match(message, /npx playwright install chromium/);
+    assert.match(message, /Desktop\\Tatkal-Desk/);
+    assert.equal(message.toLowerCase().includes("password"), false);
   });
 
   it("names an Access Denied block without treating it as a field to type", () => {

@@ -46,9 +46,15 @@ export async function POST(
 
   try {
     const result = await openIrctcWindow(booking);
-    return NextResponse.json(result);
+    return NextResponse.json(
+      {
+        ...result,
+        error: result.ok ? undefined : result.message,
+      },
+      { status: result.ok ? 200 : 503 },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }

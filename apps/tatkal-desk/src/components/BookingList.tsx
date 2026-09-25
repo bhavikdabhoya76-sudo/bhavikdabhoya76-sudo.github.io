@@ -118,28 +118,107 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+type Notice = { kind: "error" | "ok"; text: string };
+
 type Props = {
   bookings: BookingRequest[];
-  onChanged: () => void;
+  onChanged: () => void | Promise<void>;
+  onIrctcNotice?: (notice: Notice) => void;
 };
 
-export function BookingList({ bookings, onChanged }: Props) {
+export function BookingList({ bookings, onChanged, onIrctcNotice }: Props) {
   const [humanValue, setHumanValue] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [noticeBookingId, setNoticeBookingId] = useState<string | null>(null);
+
+  function showNotice(next: Notice, bookingId?: string) {
+    setNotice(next);
+    if (next.kind === "error") setError(next.text);
+    else setError(null);
+    if (bookingId) setNoticeBookingId(bookingId);
+    onIrctcNotice?.(next);
+  }
+
+  useEffect(() => {
+    if (!noticeBookingId || busyId === noticeBookingId) return;
+    const window = bookings.find((b) => b.id === noticeBookingId)?.irctcWindow;
+    if (!window?.message) return;
+    const failed =
+      window.mode === "simulate" ||
+      window.phase === "failed" ||
+      window.phase === "blocked" ||
+      window.phase === "selectors_failed";
+    const next: Notice = {
+      kind: failed ? "error" : "ok",
+      text: window.message,
+    };
+    setNotice(next);
+    setError(failed ? window.message : null);
+    onIrctcNotice?.(next);
+  }, [bookings, noticeBookingId, busyId, onIrctcNotice]);
 
   async function openIrctc(id: string) {
     setBusyId(id);
     setError(null);
+    showNotice({ kind: "ok", text: "Opening IRCTC…" }, id);
     try {
       const res = await fetch(`/api/bookings/${id}/open-irctc`, {
         method: "POST",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not open IRCTC");
-      onChanged();
+      const raw = await res.text();
+      let data: {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+        mode?: string;
+        booking?: { irctcWindow?: { phase?: string } };
+      } = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw) as typeof data;
+        } catch {
+          throw new Error(
+            `Open IRCTC failed (${res.status}). The server did not return JSON.`,
+          );
+        }
+      }
+      const message =
+        (typeof data.error === "string" && data.error) ||
+        (typeof data.message === "string" && data.message) ||
+        `Could not open IRCTC (${res.status})`;
+      const phase = data.booking?.irctcWindow?.phase;
+      const failed =
+        !res.ok ||
+        data.ok === false ||
+        data.mode === "simulate" ||
+        phase === "simulate" ||
+        phase === "failed" ||
+        phase === "blocked" ||
+        phase === "selectors_failed";
+      showNotice({ kind: failed ? "error" : "ok", text: message }, id);
+      try {
+        await onChanged();
+      } catch (refreshErr) {
+        const extra =
+          refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+        showNotice(
+          {
+            kind: "error",
+            text: `${message} (page refresh failed: ${extra})`,
+          },
+          id,
+        );
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showNotice(
+        {
+          kind: "error",
+          text: err instanceof Error ? err.message : String(err),
+        },
+        id,
+      );
     } finally {
       setBusyId(null);
     }
@@ -247,9 +326,9 @@ export function BookingList({ bookings, onChanged }: Props) {
             type="button"
             className="primary-btn"
             disabled={busyId === launchTarget.id}
-            onClick={() => openIrctc(launchTarget.id)}
+            onClick={() => void openIrctc(launchTarget.id)}
           >
-            Open IRCTC
+            {busyId === launchTarget.id ? "Opening IRCTC…" : "Open IRCTC"}
           </button>
           <p>
             Opens Chromium on irctc.co.in and fills From, To, date, class, and
@@ -259,9 +338,18 @@ export function BookingList({ bookings, onChanged }: Props) {
             </strong>
             . You type login, CAPTCHA, OTP, and payment in that window.
           </p>
+          {notice && (
+            <p className={`irctc-alert ${notice.kind}`} role="alert">
+              {notice.text}
+            </p>
+          )}
         </div>
       )}
-      {error && <p className="form-msg error list-error">{error}</p>}
+      {error && !notice && (
+        <p className="form-msg error list-error" role="alert">
+          {error}
+        </p>
+      )}
       {bookings.map((b) => (
         <article key={b.id} className={`booking-item status-${b.status}`}>
           <header>
@@ -418,9 +506,9 @@ export function BookingList({ bookings, onChanged }: Props) {
                 type="button"
                 className="primary-btn"
                 disabled={busyId === b.id}
-                onClick={() => openIrctc(b.id)}
+                onClick={() => void openIrctc(b.id)}
               >
-                Open IRCTC
+                {busyId === b.id ? "Opening IRCTC…" : "Open IRCTC"}
               </button>
             )}
             {(b.status === "draft" || b.status === "failed") && (

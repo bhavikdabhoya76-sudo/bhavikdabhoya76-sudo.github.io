@@ -19,6 +19,10 @@ export function Dashboard() {
   );
   const [mode, setMode] = useState("simulate");
   const [clock, setClock] = useState("");
+  const [irctcNotice, setIrctcNotice] = useState<{
+    kind: "error" | "ok";
+    text: string;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/bookings");
@@ -104,7 +108,22 @@ export function Dashboard() {
           </div>
           <div>
             <span className="meta-label">Engine</span>
-            <strong>private-astra · {mode}</strong>
+            <strong>
+              private-astra ·{" "}
+              {bookings.some(
+                (b) =>
+                  b.irctcWindow?.mode === "playwright" &&
+                  b.irctcWindow.phase !== "failed" &&
+                  b.irctcWindow.phase !== "closed",
+              )
+                ? "playwright"
+                : mode}
+            </strong>
+            {irctcNotice && (
+              <p className={`engine-note ${irctcNotice.kind}`} role="alert">
+                {irctcNotice.text}
+              </p>
+            )}
           </div>
           <div>
             <span className="meta-label">Tatkal windows</span>
@@ -129,7 +148,11 @@ export function Dashboard() {
             handoff at T−10, Search at T+0. Keep this tab open (or tick the
             schedule endpoint). Prefer waking yourself — do not trust cron alone.
           </p>
-          <BookingList bookings={bookings} onChanged={refresh} />
+          <BookingList
+            bookings={bookings}
+            onChanged={refresh}
+            onIrctcNotice={setIrctcNotice}
+          />
         </section>
 
         <section className="panel limits">
@@ -144,8 +167,8 @@ export function Dashboard() {
               check Booked Ticket History and eWallet before any retry.
             </li>
             <li>
-              Open IRCTC uses headed Chromium. If Playwright is missing, Desk
-              stays on the simulate timeline. One-time setup:{" "}
+              Open IRCTC uses headed Chromium. If Playwright is missing, the
+              page shows the error. One-time setup in Desktop\Tatkal-Desk:{" "}
               <code>npx playwright install chromium</code>
             </li>
             <li>

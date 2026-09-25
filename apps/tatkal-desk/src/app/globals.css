@@ -499,6 +499,39 @@ main {
   line-height: 1.45;
 }
 
+.irctc-alert {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  border-left: 3px solid var(--danger);
+  background: #fff4f1;
+  color: var(--danger);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.irctc-alert.ok {
+  border-left-color: var(--ok);
+  background: #f1faf6;
+  color: var(--ok);
+}
+
+.engine-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.engine-note.error {
+  color: var(--danger);
+}
+
+.engine-note.ok {
+  color: var(--ok);
+}
+
 .irctc-banner {
   margin: 0.35rem 0 0.85rem;
   padding: 0.75rem 0.85rem;

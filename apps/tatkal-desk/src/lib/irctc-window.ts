@@ -3,7 +3,7 @@
  * The child process does not receive IRCTC_PASSWORD.
  */
 
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -147,7 +147,88 @@ function recentlyActive(status: StatusFile | null): boolean {
   return age >= 0 && age < 20_000;
 }
 
+function observeLaunch(
+  child: ChildProcess,
+  bookingId: string,
+  timeoutMs: number,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: { ok: true } | { ok: false; message: string }) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(timer);
+      clearTimeout(limit);
+      resolve(result);
+    };
+
+    const timer = setInterval(() => {
+      void readIrctcStatus(bookingId).then((status) => {
+        if (!status) return;
+        if (status.mode === "simulate" || status.phase === "failed") {
+          finish({
+            ok: false,
+            message: status.message || simulateInstallMessage(),
+          });
+        }
+      });
+    }, 250);
+
+    const limit = setTimeout(() => finish({ ok: true }), timeoutMs);
+
+    const onExit = () => {
+      void readIrctcStatus(bookingId).then((status) => {
+        const message = status?.message || "";
+        const stillStarting =
+          !message || message.startsWith("Opening headed Chromium");
+        if (
+          status?.mode === "playwright" &&
+          status.phase !== "failed" &&
+          !stillStarting
+        ) {
+          finish({ ok: true });
+          return;
+        }
+        finish({
+          ok: false,
+          message: stillStarting ? simulateInstallMessage() : message,
+        });
+      });
+    };
+
+    child.on("error", (err) => {
+      finish({
+        ok: false,
+        message: `${simulateInstallMessage()} (${err.message})`,
+      });
+    });
+
+    if (child.exitCode !== null || child.signalCode) onExit();
+    else child.on("exit", onExit);
+  });
+}
+
+async function saveWindow(
+  booking: BookingRequest,
+  window: IrctcWindowState,
+  level: RunLogEntry["level"],
+): Promise<BookingRequest> {
+  await writeFile(
+    statusPathFor(booking.id),
+    JSON.stringify({ bookingId: booking.id, ...window }, null, 2) + "\n",
+    "utf8",
+  );
+  booking.irctcWindow = window;
+  booking.runLog = [
+    ...booking.runLog,
+    logLine(level, `IRCTC: ${window.message}`),
+  ].slice(-80);
+  booking.updatedAt = window.updatedAt;
+  return upsertBooking(booking);
+}
+
 export async function openIrctcWindow(booking: BookingRequest): Promise<{
+  ok: boolean;
   booking: BookingRequest;
   mode: "playwright" | "simulate";
   alreadyRunning: boolean;
@@ -156,12 +237,14 @@ export async function openIrctcWindow(booking: BookingRequest): Promise<{
   await mkdir(WINDOW_DIR, { recursive: true });
   const existing = await readIrctcStatus(booking.id);
   if (recentlyActive(existing)) {
+    const mode = existing?.mode === "playwright" ? "playwright" : "simulate";
     const message =
       existing?.message ||
       "IRCTC window is already open. Log in there yourself if you have not.";
     return {
+      ok: mode === "playwright",
       booking,
-      mode: existing?.mode === "playwright" ? "playwright" : "simulate",
+      mode,
       alreadyRunning: true,
       message,
     };
@@ -177,11 +260,8 @@ export async function openIrctcWindow(booking: BookingRequest): Promise<{
       message,
       updatedAt: new Date().toISOString(),
     };
-    booking.irctcWindow = window;
-    booking.runLog = [...booking.runLog, logLine("warn", `IRCTC: ${message}`)].slice(-80);
-    booking.updatedAt = window.updatedAt;
-    const saved = await upsertBooking(booking);
-    return { booking: saved, mode: "simulate", alreadyRunning: false, message };
+    const saved = await saveWindow(booking, window, "warn");
+    return { ok: false, booking: saved, mode: "simulate", alreadyRunning: false, message };
   }
 
   const job = buildIrctcJob(booking);
@@ -217,21 +297,36 @@ export async function openIrctcWindow(booking: BookingRequest): Promise<{
       env: childEnv(),
       detached: true,
       stdio: "ignore",
+      windowsHide: false,
     },
   );
   child.unref();
 
-  booking.irctcWindow = starting;
-  booking.runLog = [
-    ...booking.runLog,
-    logLine("info", `IRCTC: ${starting.message}`),
-  ].slice(-80);
-  booking.updatedAt = starting.updatedAt;
-  const saved = await upsertBooking(booking);
+  const outcome = await observeLaunch(child, booking.id, 4000);
+  const latest = await readIrctcStatus(booking.id);
+  const launched =
+    outcome.ok &&
+    latest?.mode !== "simulate" &&
+    latest?.phase !== "failed";
+  const window: IrctcWindowState = launched
+    ? latest?.message && latest.phase && latest.phase !== "starting"
+      ? toWindow(latest)
+      : starting
+    : {
+        mode: "simulate",
+        phase: "simulate",
+        gate: null,
+        message: outcome.ok
+          ? latest?.message || simulateInstallMessage()
+          : outcome.message,
+        updatedAt: new Date().toISOString(),
+      };
+  const saved = await saveWindow(booking, window, launched ? "info" : "warn");
   return {
+    ok: launched,
     booking: saved,
-    mode: "playwright",
+    mode: launched ? "playwright" : "simulate",
     alreadyRunning: false,
-    message: starting.message,
+    message: window.message,
   };
 }
