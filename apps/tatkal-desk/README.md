@@ -6,12 +6,53 @@ Self-hosted, attended IRCTC **Tatkal** helper. Same runbook as the Google Doc
 Night-before form + checklist → T−15 / T−10 / T+0 timeline → HAND TO ME for
 login, CAPTCHA, OTP, payment → final PNR / failure report in Desk.
 
-## Quick start (local)
+---
+
+## Windows Desktop — run steps / વિન્ડોઝ ડેસ્કટોપ — ચલાવવાની રીત
+
+### English
+
+1. **Install Node.js LTS** from [https://nodejs.org](https://nodejs.org) (v20+). Restart PowerShell after install.
+2. Put this folder on your Desktop as `Tatkal-Desk` (if you downloaded the zip, extract there).
+3. Open **PowerShell** or **Command Prompt**:
+
+```bat
+cd %USERPROFILE%\Desktop\Tatkal-Desk
+copy .env.example .env.local
+npm install
+npm run dev
+```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+5. Fill the night-before form + checklist → **Arm Astra timeline** → keep the tab open → complete **HAND TO ME** when prompted.
+
+Optional: leave `IRCTC_PASSWORD` empty in `.env.local`. Type your password only in the IRCTC browser window during HAND TO ME.
+
+### ગુજરાતી
+
+1. **Node.js LTS** ઇન્સ્ટોલ કરો: [https://nodejs.org](https://nodejs.org) (v20+). ઇન્સ્ટોલ પછી PowerShell ફરી ખોલો.
+2. આ ફોલ્ડર Desktop પર `Tatkal-Desk` નામથી રાખો (zip હોય તો extract કરીને).
+3. **PowerShell** અથવા **Command Prompt** ખોલો:
+
+```bat
+cd %USERPROFILE%\Desktop\Tatkal-Desk
+copy .env.example .env.local
+npm install
+npm run dev
+```
+
+4. બ્રાઉઝરમાં [http://localhost:3000](http://localhost:3000) ખોલો.
+5. રાત પહેલાંનું ફોર્મ + ચેકલિસ્ટ ભરો → **Arm Astra timeline** → ટેબ ખુલ્લી રાખો → **HAND TO ME** આવે ત્યારે login / CAPTCHA / OTP / payment પૂરું કરો.
+
+નોંધ: `.env.local` માં પાસવર્ડ ખાલી રાખો. પાસવર્ડ ફક્ત IRCTC બ્રાઉઝરમાં જ ટાઈપ કરો — Desk અથવા chat માં નહીં.
+
+---
+
+## Quick start (any OS / monorepo)
 
 ```bash
-cd apps/tatkal-desk
+cd apps/tatkal-desk   # or: cd Tatkal-Desk if using the Desktop zip
 cp .env.example .env.local
-# Optional: IRCTC_USERNAME only. Leave password empty — type it in browser takeover.
 npm install
 npm run dev
 ```
@@ -23,6 +64,9 @@ Open [http://localhost:3000](http://localhost:3000).
 ```bash
 npm i -D playwright
 npx playwright install chromium
+# Windows PowerShell:
+$env:BOOKING_MODE="playwright"; npm run dev
+# bash:
 BOOKING_MODE=playwright npm run dev
 ```
 
@@ -70,3 +114,4 @@ practice. Wire selectors on your machine before a real Tatkal morning.
 
 - Project plan: store `docs/tatkal-dashboard-plan.md`
 - Architecture choice: store `docs/auto-booking-structure.md` (private A-style)
+- Desktop zip guide: store `docs/desktop-install.md`
