@@ -7,6 +7,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     service: "tatkal-desk",
+    engine: "private-astra",
     credentials: getCredentialStatus(),
     bookingMode: process.env.BOOKING_MODE || "simulate",
     time: new Date().toISOString(),
