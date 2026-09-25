@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Env & secrets — never commit
+.env
+.env.local
+.env.*.local
+*.pem
+credentials.json
+apps/tatkal-desk/data/*
+!apps/tatkal-desk/data/.gitkeep
+
+# Debug / OS
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
