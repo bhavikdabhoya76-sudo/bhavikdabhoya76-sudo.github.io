@@ -1,0 +1,118 @@
+# Tatkal Desk — private Astra-style assistant
+
+Self-hosted, attended IRCTC **Tatkal** helper. Same runbook as the Google Doc
+(ChatGPT Astra flow), but **no ChatGPT / Astra / OpenAI dependency**.
+
+Night-before form + checklist → T−15 / T−10 / T+0 timeline → HAND TO ME for
+login, CAPTCHA, OTP, payment → final PNR / failure report in Desk.
+
+---
+
+## Windows Desktop — run steps / વિન્ડોઝ ડેસ્કટોપ — ચલાવવાની રીત
+
+### English
+
+1. **Install Node.js LTS** from [https://nodejs.org](https://nodejs.org) (v20+). Restart after install if needed.
+2. **Double-click `Start-Tatkal-Desk.bat` from anywhere** (this folder, Downloads, or next to the zip). It copies the app to `%USERPROFILE%\Desktop\Tatkal-Desk` (skips `node_modules` and `.next`) and starts only from there. A zip named `Tatkal-Desk-Desktop.zip` next to the bat is extracted to Desktop instead. Or right-click `Run-Now.ps1` -> Run with PowerShell.
+3. Optional cleanup of old leftovers: `docs\node_modules`, `docs\package-lock.json`, and `docs\Tatkal-Desk-Desktop\` (nested under Context). Do not need these for the new launcher.
+4. Browser opens to http://localhost:3000. First run may `npm install`.
+5. Fill the night-before form + checklist → **Arm Astra timeline** → **Open IRCTC** (after `npx playwright install chromium` once) → keep the tab open → type login, CAPTCHA, OTP, and payment in the IRCTC window.
+
+**Note:** `npm run dev` uses plain `next dev` (Turbopack disabled) to avoid Windows path-length FATAL errors on long folders.
+
+Manual alternative (PowerShell / Command Prompt):
+
+```bat
+cd %USERPROFILE%\Desktop\Tatkal-Desk
+copy .env.example .env.local
+npm install
+npm run dev
+```
+
+Optional: leave `IRCTC_PASSWORD` empty in `.env.local`. Type your password only in the IRCTC browser window during HAND TO ME.
+
+### ગુજરાતી
+
+1. **Node.js LTS** ઇન્સ્ટોલ કરો: [https://nodejs.org](https://nodejs.org) (v20+).
+2. આ ફોલ્ડર Desktop પર `Tatkal-Desk` નામથી રાખો (zip હોય તો extract કરીને).
+3. **`Start-Tatkal-Desk.bat` પર ડબલ-ક્લિક કરો** (પહેલી વાર packages install થઈ શકે; બ્રાઉઝર http://localhost:3000 ખુલશે).
+4. રાત પહેલાંનું ફોર્મ + ચેકલિસ્ટ ભરો → **Arm Astra timeline**.
+5. એક વાર `npx playwright install chromium`, પછી **Open IRCTC**. From / To / date / class / TQ ભરાશે. Password, CAPTCHA, OTP, payment તમે IRCTC વિન્ડોમાં જ ટાઈપ કરો.
+
+નોંધ: `.env.local` માં પાસવર્ડ ખાલી રાખો. પાસવર્ડ ફક્ત IRCTC બ્રાઉઝરમાં જ ટાઈપ કરો — Desk અથવા chat માં નહીં.
+
+---
+
+## Quick start (any OS / monorepo)
+
+```bash
+cd apps/tatkal-desk   # or: cd Tatkal-Desk if using the Desktop zip
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Open IRCTC (headed Chromium)
+
+Once, in this folder:
+
+```bash
+npx playwright install chromium
+```
+
+Then in the dashboard click **Open IRCTC**. A visible Chromium window opens
+https://www.irctc.co.in and fills **From, To, date, class, and quota (TQ)** from
+the saved booking. It does not click Login and does not type your password.
+
+At Tatkal open, if you already logged in yourself, the window may click Search
+and fill passenger name / age / gender, then **pause** at CAPTCHA, OTP, or
+payment. Type those in the IRCTC window.
+
+If Chromium is missing, or IRCTC blocks the script, Desk stays on the simulate
+timeline and the card explains the one-time install command.
+
+## What works
+
+| Feature | Status |
+| --- | --- |
+| Night-before form (train, station codes, date, class, TQ, fare cap, passengers) | ✅ |
+| Checklist (Aadhaar, Master List, eWallet, anti-double-book) | ✅ |
+| CNF-only + eWallet defaults | ✅ |
+| Astra timeline: T−15 start · T−10 login · pre-fill · T−1 hold · T+0 Search | ✅ |
+| HAND TO ME: login / CAPTCHA / OTP / payment (values not stored) | ✅ |
+| Fare-cap stop + History/wallet guard messaging | ✅ |
+| Final report (placeholder PNR in simulate) | ✅ |
+| Session API `/api/bookings/:id/session` | ✅ |
+| Open IRCTC headed window (public journey fields only) | ✅ local Chromium |
+| Playwright missing → simulate timeline | ✅ |
+| Live unattended book / password / CAPTCHA / OTP / payment | ❌ never |
+
+## Human steps (you)
+
+1. **Login** — take over browser; type IRCTC password yourself; submit `done` in Desk.
+2. **CAPTCHA / OTP / txn password** — phone + eyes; ~5s handoffs.
+3. Verify PNR in IRCTC Booked Ticket History after a real booking.
+
+## Honest limits
+
+- No CAPTCHA bypass, no silent full auto, no password-in-chat/LLM.
+- Automating IRCTC may conflict with their Terms — own account, own risk.
+- Prefer manual wake at T−15; do not trust cron alone.
+
+## API
+
+- `GET/POST /api/bookings`
+- `GET/DELETE /api/bookings/:id`
+- `POST /api/bookings/:id/arm` — `{ }` arm · `{ "action": "cancel" }`
+- `POST /api/bookings/:id/human-step` — `{ "step", "value" }` (login value = `done`)
+- `GET/POST /api/bookings/:id/session` — HAND TO ME session state
+- `POST /api/schedule/tick` — advance from T−15
+- `POST /api/bookings/:id/open-irctc` — headed Chromium, public journey fields only
+
+## Docs
+
+- Project plan: store `docs/tatkal-dashboard-plan.md`
+- Architecture choice: store `docs/auto-booking-structure.md` (private A-style)
+- Desktop zip guide: store `docs/desktop-install.md`
