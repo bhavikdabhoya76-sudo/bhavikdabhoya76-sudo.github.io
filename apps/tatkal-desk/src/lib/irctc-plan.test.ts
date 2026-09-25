@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   JOURNEY_SELECTORS,
+  accessDeniedMessage,
   buildIrctcJob,
   clickAllowed,
   detectGate,
@@ -250,6 +251,17 @@ describe("attended gates", () => {
     assert.equal(nextBrowserAction({ ...base, gate: "captcha" }), "pause_captcha");
     assert.equal(nextBrowserAction({ ...base, gate: "otp" }), "pause_otp");
     assert.equal(nextBrowserAction({ ...base, gate: "payment" }), "pause_payment");
+  });
+
+  it("names an Access Denied block without treating it as a field to type", () => {
+    const message = accessDeniedMessage(
+      "Access Denied",
+      "You don't have permission to access \"http://www.irctc.co.in/\" on this server. Reference #18 https://errors.edgesuite.net/18.abc",
+    );
+    assert.ok(message);
+    assert.match(message || "", /npx playwright install chromium/);
+    assert.match(message || "", /password|Login/);
+    assert.equal(accessDeniedMessage("IRCTC Next Generation eTicketing", "Book Ticket"), null);
   });
 
   it("prefills passengers after search, then holds", () => {

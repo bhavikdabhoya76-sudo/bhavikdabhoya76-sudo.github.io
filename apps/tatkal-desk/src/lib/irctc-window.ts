@@ -40,6 +40,7 @@ const ACTIVE_PHASES = new Set([
   "paused_gate",
   "hold",
   "selectors_failed",
+  "blocked",
 ]);
 
 function logLine(level: RunLogEntry["level"], message: string): RunLogEntry {
@@ -95,7 +96,8 @@ export async function syncIrctcWindows(
       window.mode === "simulate" ||
       window.phase === "failed" ||
       window.phase === "paused_gate" ||
-      window.phase === "selectors_failed"
+      window.phase === "selectors_failed" ||
+      window.phase === "blocked"
         ? "warn"
         : "info";
     next.push({

@@ -256,7 +256,7 @@ export function nextBrowserAction(input: ActionInput): BrowserAction {
 
   if (!input.journeyFilled) {
     if (input.gate === "login") return "pause_login";
-    if (input.fillAttempts >= 3) {
+    if (input.fillAttempts >= 8) {
       if (open && !input.loggedIn) return "pause_login";
       return "hold";
     }
@@ -327,4 +327,13 @@ export function filledJourneyMessage(job: IrctcJob, partial: boolean): string {
 
 export function simulateInstallMessage(): string {
   return "Playwright Chromium is not ready. In the Tatkal Desk folder run once: npx playwright install chromium — then click Open IRCTC again. Simulate mode still runs. Login, CAPTCHA, OTP, and payment stay manual.";
+}
+
+/** Akamai/IRCTC block page. Selectors cannot run until the form is actually visible. */
+export function accessDeniedMessage(title: string, bodyText: string): string | null {
+  const blob = `${title}\n${bodyText}`.slice(0, 2500);
+  if (!/access denied|edgesuite\.net|you don't have permission to access/i.test(blob)) {
+    return null;
+  }
+  return "IRCTC blocked this browser (Access Denied). That is common on cloud networks. On your PC, run npx playwright install chromium once, then click Open IRCTC. If the form is visible, type From, To, date, class, and TQ yourself. Login, CAPTCHA, OTP, and payment stay manual.";
 }

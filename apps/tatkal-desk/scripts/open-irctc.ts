@@ -15,6 +15,7 @@ import type { Locator, Page } from "playwright";
 import {
   GATE_MESSAGES,
   JOURNEY_SELECTORS,
+  accessDeniedMessage,
   clickAllowed,
   detectGate,
   detectLoggedIn,
@@ -315,6 +316,14 @@ async function prefillPassengers(
   return "filled";
 }
 
+async function readBlocked(page: Page): Promise<string | null> {
+  const title = (await page.title().catch(() => "")) || "";
+  const body = (
+    (await page.locator("body").innerText({ timeout: 2000 }).catch(() => "")) || ""
+  ).slice(0, 2500);
+  return accessDeniedMessage(title, body);
+}
+
 async function openSearchForm(page: Page, job: IrctcJob): Promise<void> {
   await page.goto(job.originUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
   const ready = await firstVisible(page, JOURNEY_SELECTORS.from);
@@ -429,6 +438,17 @@ async function main(): Promise<void> {
     };
     try {
       if (page.isClosed()) break;
+      const blocked = await readBlocked(page);
+      if (blocked && !journeyFilled) {
+        await publish({
+          mode: "playwright",
+          phase: "blocked",
+          gate: null,
+          message: blocked,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        continue;
+      }
       signals = await collectSignals(page);
     } catch {
       break;
