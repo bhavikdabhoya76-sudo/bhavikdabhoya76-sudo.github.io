@@ -15,9 +15,9 @@ const figtree = Figtree({
 });
 
 export const metadata: Metadata = {
-  title: "Tatkal Desk — personal IRCTC Tatkal assistant",
+  title: "Tatkal Desk — private Astra-style Tatkal assistant",
   description:
-    "Stage train booking details, arm a Tatkal-time trigger, and finish CAPTCHA, OTP, and payment yourself.",
+    "Self-hosted attended Tatkal runbook: night-before checklist, T−15 timeline, HAND TO ME for login/CAPTCHA/OTP — no ChatGPT.",
 };
 
 export default function RootLayout({

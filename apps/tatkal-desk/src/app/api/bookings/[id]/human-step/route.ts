@@ -4,6 +4,15 @@ import type { HumanStepKind } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+const ALLOWED: HumanStepKind[] = [
+  "login",
+  "captcha",
+  "otp",
+  "payment",
+  "txn_password",
+  "history_check",
+];
+
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -11,7 +20,7 @@ export async function POST(
   const { id } = await ctx.params;
   const body = (await req.json()) as { step?: HumanStepKind; value?: string };
 
-  if (!body.step || !body.value) {
+  if (!body.step || !ALLOWED.includes(body.step) || !body.value) {
     return NextResponse.json(
       { error: "step and value required" },
       { status: 400 },

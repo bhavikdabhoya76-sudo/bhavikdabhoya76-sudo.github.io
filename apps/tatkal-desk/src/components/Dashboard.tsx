@@ -9,6 +9,7 @@ type ApiPayload = {
   bookings: BookingRequest[];
   credentials: CredentialStatus;
   bookingMode: string;
+  engine?: string;
 };
 
 export function Dashboard() {
@@ -46,7 +47,7 @@ export function Dashboard() {
     return () => clearInterval(t);
   }, []);
 
-  // Client-side scheduler: poll Tatkal due bookings every 8s
+  // Client scheduler: advance Astra timeline from T−15 while page is open
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -55,7 +56,7 @@ export function Dashboard() {
       } catch {
         /* ignore transient */
       }
-    }, 8000);
+    }, 5000);
     return () => clearInterval(t);
   }, [refresh]);
 
@@ -73,18 +74,18 @@ export function Dashboard() {
         <section className="hero">
           <div className="hero-copy">
             <p className="brand-mark">Tatkal Desk</p>
-            <h1>Stage your train. Hit the window.</h1>
+            <h1>Private Astra-style Tatkal — you stay in control.</h1>
             <p className="lede">
-              Capture IRCTC Tatkal details once. We arm a local trigger for
-              10:00 / 11:00 IST and pause for CAPTCHA, OTP, and payment — you
-              finish the human steps; we keep the queue ready.
+              Night-before form and checklist. T−15 / T−10 / T+0 timeline.
+              Attended browser pauses for login, CAPTCHA, OTP, and payment — no
+              ChatGPT, no password in chat.
             </p>
             <div className="cta-row">
               <a className="primary-btn" href="#compose">
-                Compose booking
+                Night-before prep
               </a>
               <a className="ghost-btn" href="#queue">
-                Open queue
+                Timeline queue
               </a>
             </div>
           </div>
@@ -92,60 +93,62 @@ export function Dashboard() {
 
         <section className="status-strip" aria-label="Setup status">
           <div>
-            <span className="meta-label">Credentials</span>
+            <span className="meta-label">Login</span>
             <strong>
-              {credentials?.configured
-                ? `Env · ${credentials.usernameHint}`
-                : "Missing — set IRCTC_USERNAME / IRCTC_PASSWORD in .env.local"}
+              Attended HAND TO ME
+              {credentials?.usernameHint
+                ? ` · env hint ${credentials.usernameHint}`
+                : " · password only in browser"}
             </strong>
           </div>
           <div>
-            <span className="meta-label">Booking mode</span>
-            <strong>{mode}</strong>
+            <span className="meta-label">Engine</span>
+            <strong>private-astra · {mode}</strong>
           </div>
           <div>
             <span className="meta-label">Tatkal windows</span>
-            <strong>AC 10:00 · non-AC 11:00 IST (day before journey)</strong>
+            <strong>AC 10:00 · non-AC 11:00 IST (day before)</strong>
           </div>
         </section>
 
         <section id="compose" className="panel">
-          <h2>Compose booking</h2>
+          <h2>Night-before prep</h2>
           <p className="section-lede">
-            One form — train, route, class, passengers, berth preference.
-            Secrets stay in local env, never in this record.
+            Same runbook as the Google Doc — journey fields, Master List names,
+            fare cap, CNF-only, eWallet. Secrets never leave your machine for an
+            LLM.
           </p>
           <BookingForm onCreated={refresh} />
         </section>
 
         <section id="queue" className="panel">
-          <h2>Booking queue</h2>
+          <h2>Timeline &amp; arming</h2>
           <p className="section-lede">
-            Arm a draft to wait for Tatkal open time. The desk ticks every few
-            seconds while this page is open.
+            Arm when checklist is done. Desk suggests start at T−15, login
+            handoff at T−10, Search at T+0. Keep this tab open (or tick the
+            schedule endpoint). Prefer waking yourself — do not trust cron alone.
           </p>
           <BookingList bookings={bookings} onChanged={refresh} />
         </section>
 
         <section className="panel limits">
-          <h2>What this MVP does — and does not</h2>
+          <h2>Honest limits</h2>
           <ul>
             <li>
-              Saves booking drafts locally and computes Tatkal open time from
-              class + journey date.
+              No CAPTCHA bypass, no silent full auto, no IRCTC password in Desk
+              chat or any LLM.
             </li>
             <li>
-              Arms a scheduler trigger and runs a simulate path that pauses for
-              CAPTCHA → OTP → payment.
+              CNF-only and fare-cap stop are enforced in the runbook. On error:
+              check Booked Ticket History and eWallet before any retry.
             </li>
             <li>
-              Does <em>not</em> silently book on IRCTC. There is no official
-              public booking API; live automation needs attended browser work
-              and must respect IRCTC terms.
+              Simulate mode practices the exact Astra timeline with a placeholder
+              PNR. Live IRCTC needs local Playwright + you at the keyboard.
             </li>
             <li>
-              Never commits passwords, OTP, or CAPTCHA values to git or the
-              booking JSON store.
+              IRCTC may flag automation — use only for your own travel, at your
+              own risk. This app does not depend on OpenAI / ChatGPT / Astra.
             </li>
           </ul>
         </section>

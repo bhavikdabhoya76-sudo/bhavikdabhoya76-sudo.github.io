@@ -3,9 +3,22 @@ import { newId } from "@/lib/id";
 import { readBookings, upsertBooking } from "@/lib/storage";
 import { computeTatkalOpenAt } from "@/lib/tatkal-time";
 import { getCredentialStatus } from "@/lib/credentials";
-import type { BookingRequest, CreateBookingInput, Passenger } from "@/lib/types";
+import type {
+  BookingRequest,
+  CreateBookingInput,
+  Passenger,
+  PrepChecklist,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
+
+const emptyChecklist = (): PrepChecklist => ({
+  aadhaarVerified: false,
+  masterListSaved: false,
+  ewalletFunded: false,
+  journeyDetailsReady: false,
+  antiDoubleBookAck: false,
+});
 
 export async function GET() {
   const bookings = await readBookings();
@@ -13,6 +26,7 @@ export async function GET() {
     bookings,
     credentials: getCredentialStatus(),
     bookingMode: process.env.BOOKING_MODE || "simulate",
+    engine: "private-astra",
   });
 }
 
@@ -23,7 +37,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Train number required" }, { status: 400 });
   }
   if (!body.fromStation?.trim() || !body.toStation?.trim()) {
-    return NextResponse.json({ error: "From/To stations required" }, { status: 400 });
+    return NextResponse.json({ error: "From/To station codes required" }, { status: 400 });
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(body.journeyDate || "")) {
     return NextResponse.json({ error: "Journey date must be YYYY-MM-DD" }, { status: 400 });
@@ -34,6 +48,18 @@ export async function POST(req: Request) {
   if (!body.passengers?.length) {
     return NextResponse.json({ error: "At least one passenger required" }, { status: 400 });
   }
+  const fareCap = Number(body.fareCap);
+  if (!Number.isFinite(fareCap) || fareCap <= 0) {
+    return NextResponse.json(
+      { error: "Fare cap (max total ₹) required" },
+      { status: 400 },
+    );
+  }
+
+  const checklist: PrepChecklist = {
+    ...emptyChecklist(),
+    ...(body.checklist || {}),
+  };
 
   const now = new Date().toISOString();
   const passengers: Passenger[] = body.passengers.map((p) => ({
@@ -57,14 +83,20 @@ export async function POST(req: Request) {
     passengers,
     mobile: body.mobile?.trim() || undefined,
     notes: body.notes?.trim() || undefined,
+    fareCap,
+    cnfOnly: true,
+    paymentMethod: "ewallet",
+    checklist,
     status: "draft",
+    timelinePhase: "idle",
     tatkalOpensAt: computeTatkalOpenAt(body.journeyDate, body.trainClass),
     armedAt: null,
     runLog: [
       {
         at: now,
         level: "info",
-        message: "Draft created. Arm when ready for Tatkal window.",
+        message:
+          "Draft created (private Astra-style). Complete checklist, then Arm. Login password stays in browser takeover — never in chat.",
       },
     ],
     pendingHumanStep: null,

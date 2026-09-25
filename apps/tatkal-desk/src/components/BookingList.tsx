@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { BookingRequest, HumanStepKind } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import {
+  HOLD_BEFORE_OPEN_MINUTES,
+  LOGIN_HANDOFF_MINUTES,
+  START_EARLY_MINUTES,
+  TIMELINE_LABELS,
+} from "@/lib/tatkal-time";
+import type { BookingRequest, HumanStepKind, TimelinePhase } from "@/lib/types";
 
 function formatIst(iso: string | null): string {
   if (!iso) return "—";
@@ -33,16 +39,82 @@ function Countdown({ targetIso }: { targetIso: string | null }) {
   );
 }
 
+function TimelineRail({
+  phase,
+  opensAt,
+}: {
+  phase: TimelinePhase;
+  opensAt: string | null;
+}) {
+  const steps: TimelinePhase[] = [
+    "t15_start",
+    "t10_login",
+    "prefill",
+    "t1_hold",
+    "t0_search",
+    "passengers_cnf",
+    "hand_captcha",
+    "hand_otp",
+    "fare_ewallet",
+    "hand_payment",
+    "final_report",
+  ];
+  const normalized: TimelinePhase =
+    phase === "idle"
+      ? "t15_start"
+      : phase === "history_guard"
+        ? "hand_payment"
+        : phase;
+  const idx = steps.indexOf(normalized);
+  const cues = useMemo(() => {
+    if (!opensAt) return null;
+    const open = new Date(opensAt).getTime();
+    return {
+      t15: new Date(open - START_EARLY_MINUTES * 60_000).toISOString(),
+      t10: new Date(open - LOGIN_HANDOFF_MINUTES * 60_000).toISOString(),
+      t1: new Date(open - HOLD_BEFORE_OPEN_MINUTES * 60_000).toISOString(),
+    };
+  }, [opensAt]);
+
+  return (
+    <div className="timeline-rail">
+      <p className="timeline-current">
+        Phase: <strong>{TIMELINE_LABELS[phase]}</strong>
+      </p>
+      {cues && (
+        <p className="field-hint">
+          Cues IST — start {formatIst(cues.t15)} · login {formatIst(cues.t10)} ·
+          hold {formatIst(cues.t1)} · Search {formatIst(opensAt)}
+        </p>
+      )}
+      <ol className="timeline-steps">
+        {steps.map((s, i) => (
+          <li
+            key={s}
+            className={
+              i < idx ? "done" : i === idx || phase === s ? "active" : ""
+            }
+          >
+            {TIMELINE_LABELS[s]}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
   armed: "Armed",
-  waiting_for_tatkal: "Waiting for Tatkal",
+  waiting_for_tatkal: "Waiting / armed clock",
   running: "Running",
-  awaiting_captcha: "Needs CAPTCHA",
-  awaiting_otp: "Needs OTP",
-  awaiting_payment: "Needs payment",
+  awaiting_login: "HAND TO ME: login",
+  awaiting_captcha: "HAND TO ME: CAPTCHA",
+  awaiting_otp: "HAND TO ME: OTP",
+  awaiting_payment: "HAND TO ME: payment",
+  awaiting_history_check: "Check History + wallet",
   booked: "Booked",
-  failed: "Failed",
+  failed: "Failed / stopped",
   cancelled: "Cancelled",
 };
 
@@ -102,11 +174,21 @@ export function BookingList({ bookings, onChanged }: Props) {
   async function submitStep(id: string, step: HumanStepKind) {
     setBusyId(id);
     setError(null);
+    const raw = humanValue[id] || "";
+    const value =
+      step === "login" || step === "history_check"
+        ? raw.trim() || "done"
+        : raw;
     try {
+      await fetch(`/api/bookings/${id}/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "hand_back" }),
+      });
       const res = await fetch(`/api/bookings/${id}/human-step`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step, value: humanValue[id] || "" }),
+        body: JSON.stringify({ step, value }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Step failed");
@@ -122,7 +204,7 @@ export function BookingList({ bookings, onChanged }: Props) {
   if (bookings.length === 0) {
     return (
       <p className="empty-list">
-        No bookings yet. Fill the form above to stage a Tatkal attempt.
+        No bookings yet. Fill the form and night-before checklist above.
       </p>
     );
   }
@@ -140,7 +222,7 @@ export function BookingList({ bookings, onChanged }: Props) {
               </h3>
               <p className="route">
                 {b.fromStation} → {b.toStation} · {b.journeyDate} ·{" "}
-                {b.trainClass}/{b.quota}
+                {b.trainClass}/{b.quota} · cap ₹{b.fareCap} · CNF-only
               </p>
             </div>
             <span className={`status-pill ${b.status}`}>
@@ -171,38 +253,94 @@ export function BookingList({ bookings, onChanged }: Props) {
             )}
           </div>
 
+          <TimelineRail phase={b.timelinePhase || "idle"} opensAt={b.tatkalOpensAt} />
+
+          {b.finalReport && (
+            <div className={`final-report ${b.finalReport.outcome}`}>
+              <h4>Final report</h4>
+              {b.finalReport.outcome === "booked" ? (
+                <p>
+                  PNR <strong>{b.finalReport.pnr}</strong> ·{" "}
+                  {b.finalReport.status || "CNF"}
+                  {b.finalReport.amount != null
+                    ? ` · ₹${b.finalReport.amount}`
+                    : ""}
+                </p>
+              ) : (
+                <p>{b.finalReport.reason || "Stopped / failed"}</p>
+              )}
+            </div>
+          )}
+
           {b.pendingHumanStep && (
             <div className="human-step">
               <p>
-                Human step required: <strong>{b.pendingHumanStep}</strong>
+                <strong>HAND TO ME:</strong> {b.pendingHumanStep}
               </p>
               <div className="human-row">
-                <input
-                  type={b.pendingHumanStep === "otp" ? "password" : "text"}
-                  placeholder={
-                    b.pendingHumanStep === "captcha"
-                      ? "CAPTCHA text"
-                      : b.pendingHumanStep === "otp"
-                        ? "OTP"
-                        : "Payment ref / done"
-                  }
-                  value={humanValue[b.id] || ""}
-                  onChange={(e) =>
-                    setHumanValue((v) => ({ ...v, [b.id]: e.target.value }))
-                  }
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  className="primary-btn"
-                  disabled={busyId === b.id}
-                  onClick={() => submitStep(b.id, b.pendingHumanStep!)}
-                >
-                  Submit
-                </button>
+                {b.pendingHumanStep === "login" ? (
+                  <>
+                    <input
+                      type="text"
+                      placeholder='Type "done" after you log in in the browser'
+                      value={humanValue[b.id] || ""}
+                      onChange={(e) =>
+                        setHumanValue((v) => ({
+                          ...v,
+                          [b.id]: e.target.value,
+                        }))
+                      }
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      disabled={busyId === b.id}
+                      onClick={() => submitStep(b.id, "login")}
+                    >
+                      Handed back
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type={
+                        b.pendingHumanStep === "otp" ||
+                        b.pendingHumanStep === "txn_password"
+                          ? "password"
+                          : "text"
+                      }
+                      placeholder={
+                        b.pendingHumanStep === "captcha"
+                          ? "CAPTCHA text (not stored)"
+                          : b.pendingHumanStep === "otp"
+                            ? "OTP (not stored)"
+                            : "done / payment ref (not stored)"
+                      }
+                      value={humanValue[b.id] || ""}
+                      onChange={(e) =>
+                        setHumanValue((v) => ({
+                          ...v,
+                          [b.id]: e.target.value,
+                        }))
+                      }
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      disabled={busyId === b.id}
+                      onClick={() => submitStep(b.id, b.pendingHumanStep!)}
+                    >
+                      Continue
+                    </button>
+                  </>
+                )}
               </div>
               <p className="hint">
-                Values are used for this step only and are not saved to disk.
+                {b.pendingHumanStep === "login"
+                  ? "Never paste your IRCTC password here — type it only in the browser takeover."
+                  : "Values are used for this step only and are not saved to disk."}
               </p>
             </div>
           )}
@@ -226,16 +364,18 @@ export function BookingList({ bookings, onChanged }: Props) {
                 disabled={busyId === b.id}
                 onClick={() => arm(b.id)}
               >
-                Arm for Tatkal
+                Arm Astra timeline
               </button>
             )}
             {[
               "armed",
               "waiting_for_tatkal",
               "running",
+              "awaiting_login",
               "awaiting_captcha",
               "awaiting_otp",
               "awaiting_payment",
+              "awaiting_history_check",
             ].includes(b.status) && (
               <button
                 type="button"
